@@ -39,7 +39,7 @@ index a50ce5731..eb9545984 100644
      # All other instances need X11, even if building headless only, libawt still
 @@ -52,8 +52,8 @@ AC_DEFUN_ONCE([LIB_DETERMINE_DEPENDENCIES],
    fi
-
+ 
    # Check if fontconfig is needed
 -  if test "x$OPENJDK_TARGET_OS" = xwindows || test "x$OPENJDK_TARGET_OS" = xmacosx; then
 -    # No fontconfig support on windows or macosx
@@ -68,9 +68,9 @@ index adb4e182d..e2ee96798 100644
 --- a/make/autoconf/toolchain.m4
 +++ b/make/autoconf/toolchain.m4
 @@ -903,11 +903,14 @@ AC_DEFUN_ONCE([TOOLCHAIN_SETUP_BUILD_COMPILERS],
-
+ 
      PATH="$OLDPATH"
-
+ 
 -    TOOLCHAIN_EXTRACT_COMPILER_VERSION(BUILD_CC, [BuildC])
 -    TOOLCHAIN_EXTRACT_COMPILER_VERSION(BUILD_CXX, [BuildC++])
 -    TOOLCHAIN_PREPARE_FOR_VERSION_COMPARISONS([BUILD_], [OPENJDK_BUILD_], [build ])
@@ -93,7 +93,7 @@ index 6a963ac2c..349ff126b 100644
 +++ b/make/common/JdkNativeCompilation.gmk
 @@ -41,5 +41,11 @@ FindSrcDirsForLib += \
  endif
-
+ 
 +ifeq ($(OPENJDK_TARGET_OS), android)
 +  FindSrcDirsForLib += \
 +    $(call uniq, $(wildcard \
@@ -115,7 +115,7 @@ index 0eb0fb2dd..e0431de0b 100644
 +  SRC_SUBDIRS += linux/classes
 +endif
 +
-
+ 
  SRC_SUBDIRS += $(OPENJDK_TARGET_OS)/classes
  ifneq ($(OPENJDK_TARGET_OS), $(OPENJDK_TARGET_OS_TYPE))
 diff --git a/make/common/Utils.gmk b/make/common/Utils.gmk
@@ -125,7 +125,7 @@ index 00e73f7dd..70accf224 100644
 @@ -346,6 +346,12 @@ check-jvm-variant = \
  isTargetOs = \
    $(strip $(if $(filter $(OPENJDK_TARGET_OS), $1), true, false))
-
+ 
 +ifeq ($(call isTargetOs, android), true)
 +  # PATCH: Since Android is Linux, so Linux specific things are also built for Android.
 +  isTargetOs = \
@@ -134,14 +134,14 @@ index 00e73f7dd..70accf224 100644
 +
  isTargetOsType = \
    $(strip $(if $(filter $(OPENJDK_TARGET_OS_TYPE), $1), true, false))
-
+ 
 diff --git a/make/modules/java.base/lib/CoreLibraries.gmk b/make/modules/java.base/lib/CoreLibraries.gmk
 index 186eff3d6..ca76357b0 100644
 --- a/make/modules/java.base/lib/CoreLibraries.gmk
 +++ b/make/modules/java.base/lib/CoreLibraries.gmk
 @@ -117,3 +117,6 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJAVA, \
  TARGETS += $(BUILD_LIBJAVA)
-
+ 
 +ifeq ($(OPENJDK_TARGET_OS), linux)
 +  $(BUILD_LIBJAVA): $(BUILD_LIBTINYICONV)
 +endif
@@ -152,7 +152,7 @@ index be1ac3f1f..4dd31c4b1 100644
 +++ b/make/modules/java.desktop/Lib.gmk
 @@ -76,4 +76,4 @@ ifeq ($(call isTargetOs, aix), false)
    ))
-
+ 
 -  TARGETS += $(BUILD_LIBJSOUND)
 +  # TARGETS += $(BUILD_LIBJSOUND)
  endif
@@ -167,7 +167,7 @@ index 96576bb8d..13dd8e3e5 100644
      LIBS := $(LIBFONTMANAGER_LIBS), \
 @@ -777,4 +777,4 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
    ))
-
+ 
 -  TARGETS += $(BUILD_LIBSPLASHSCREEN)
 +  # TARGETS += $(BUILD_LIBSPLASHSCREEN)
  endif
@@ -190,10 +190,10 @@ index 478d199e5..9477a96c9 100644
 +++ b/make/modules/jdk.hotspot.agent/Lib.gmk
 @@ -76,5 +76,5 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBSA, \
  ))
-
+ 
 -TARGETS += $(BUILD_LIBSAPROC)
 +# TARGETS += $(BUILD_LIBSAPROC)
-
+ 
  ################################################################################
 diff --git a/make/modules/jdk.jdwp.agent/Lib.gmk b/make/modules/jdk.jdwp.agent/Lib.gmk
 index b5ea40803..f92adb8d3 100644
@@ -209,14 +209,14 @@ index 61fcb8a35..93d2ad4f4 100644
 --- a/src/hotspot/cpu/arm/icache_arm.cpp
 +++ b/src/hotspot/cpu/arm/icache_arm.cpp
 @@ -31,7 +31,7 @@
-
-
+ 
+ 
  static int icache_flush(address addr, int lines, int magic) {
 -  __builtin___clear_cache(addr, addr + (lines << ICache::log2_line_size));
 +  __builtin___clear_cache((char*) addr, (char*) (addr + (lines << ICache::log2_line_size)));
    return magic;
  }
-
+ 
 diff --git a/src/hotspot/os/linux/os_linux.cpp b/src/hotspot/os/linux/os_linux.cpp
 index 42680218d..403d8905b 100644
 --- a/src/hotspot/os/linux/os_linux.cpp
@@ -224,11 +224,11 @@ index 42680218d..403d8905b 100644
 @@ -214,6 +214,8 @@ static int clock_tics_per_sec = 100;
  // avoid this
  static bool suppress_primordial_thread_resolution = false;
-
+ 
 +static bool read_so_path_from_maps(const char* so_name, char* buf, int buflen);
 +
  // utility functions
-
+ 
  julong os::Linux::available_memory_in_container() {
 @@ -348,2 +350,4 @@ bool os::Linux::get_tick_information(CPUPerfTicks* pticks, int which_logical_cpu
      #define SYS_gettid 143
@@ -237,7 +237,7 @@ index 42680218d..403d8905b 100644
    #else
 @@ -535,6 +539,7 @@ extern "C" void breakpoint() {
  // detecting pthread library
-
+ 
  void os::Linux::libpthread_init() {
 +#ifndef __ANDROID__
    // Save glibc and pthread version strings.
@@ -251,10 +251,10 @@ index 42680218d..403d8905b 100644
 +  os::Linux::set_libpthread_version("NPTL");
 +#endif
  }
-
+ 
  /////////////////////////////////////////////////////////////////////////////
 @@ -1348,7 +1356,13 @@ int os::current_process_id() {
-
+ 
  // This must be hard coded because it's the system's temporary
  // directory not the java application's temp directory, ala java.io.tmpdir.
 -const char* os::get_temp_directory() { return "/tmp"; }
@@ -265,13 +265,13 @@ index 42680218d..403d8905b 100644
 +  return "/data/tmp";
 +#endif
 +}
-
+ 
  // check if addr is inside libjvm.so
  bool os::address_is_in_vm(address addr) {
 @@ -1420,6 +1434,30 @@ bool os::dll_address_to_library_name(address addr, char* buf,
    return false;
  }
-
+ 
 +static bool read_so_path_from_maps(const char* so_name, char* buf, int buflen) {
 +  FILE *fp = fopen("/proc/self/maps", "r");
 +  assert(fp, "Failed to open /proc/self/maps");
@@ -301,14 +301,14 @@ index 42680218d..403d8905b 100644
  bool os::Linux::_stack_is_executable = false;
 @@ -2855,7 +2912,8 @@ void os::Linux::sched_getcpu_init() {
    }
-
+ 
    if (sched_getcpu() == -1) {
 -    vm_exit_during_initialization("getcpu(2) system call not supported by kernel");
 +    // vm_exit_during_initialization
 +    warning("getcpu(2) system call not supported by kernel");
    }
  }
-
+ 
 @@ -5101,7 +5178,46 @@ bool os::is_thread_cpu_time_supported() {
  // Linux doesn't yet have a (official) notion of processor sets,
  // so just return the system wide load average.
@@ -355,7 +355,7 @@ index 42680218d..403d8905b 100644
 +  return nelem;
 +#endif
  }
-
+ 
  // Get the default path to the core file
 diff --git a/src/hotspot/os/posix/os_posix.cpp b/src/hotspot/os/posix/os_posix.cpp
 index cf0f48974..04a5930b5 100644
@@ -368,7 +368,7 @@ index cf0f48974..04a5930b5 100644
 +#ifndef __ANDROID__
  #include <utmpx.h>
 +#endif
-
+ 
  #ifdef __APPLE__
    #include <crt_externs.h>
 @@ -453,2 +455,3 @@ void os::Posix::print_load_average(outputStream* st) {
@@ -423,24 +423,24 @@ index cf0f48974..04a5930b5 100644
 +#endif
    }
  }
-
+ 
 diff --git a/src/hotspot/os_cpu/linux_aarch64/threadLS_linux_aarch64.S b/src/hotspot/os_cpu/linux_aarch64/threadLS_linux_aarch64.S
 index ac60d6aa9..0645f0e00 100644
 --- a/src/hotspot/os_cpu/linux_aarch64/threadLS_linux_aarch64.S
 +++ b/src/hotspot/os_cpu/linux_aarch64/threadLS_linux_aarch64.S
 @@ -19,5 +19,6 @@
  #include "defs.S.inc"
-
+ 
 +#ifndef __ANDROID__
          // JavaThread::aarch64_get_thread_helper()
          //
          // Return the current thread pointer in x0.
 @@ -44,5 +45,6 @@ _ZN10JavaThread25aarch64_get_thread_helperEv:
          ret
-
+ 
          .size _ZN10JavaThread25aarch64_get_thread_helperEv, .-_ZN10JavaThread25aarch64_get_thread_helperEv
 +#endif
-
+ 
  /* Emit .note.gnu.property section in case of PAC or BTI being enabled.
 diff --git a/src/hotspot/os_cpu/linux_arm/fpu_control.h b/src/hotspot/os_cpu/linux_arm/fpu_control.h
 new file mode 100644
@@ -519,7 +519,7 @@ index eb560d8f0..be8da136b 100644
 +        addslt  r2, #32
          beq     disjoint_words_finish
          cmp     r2, #16
-         blt        disjoint_words_small
+ 	blt	disjoint_words_small
 @@ -136,7 +136,7 @@ cw_f2b_loop_32:
          stmia to!, {r3 - r9, ip}
          bgt     cw_f2b_loop_32
@@ -528,7 +528,7 @@ index eb560d8f0..be8da136b 100644
 +        addslt  r2, #32
          beq     conjoint_words_finish
          cmp     r2, #16
-         blt        conjoint_words_small
+ 	blt	conjoint_words_small
 @@ -169,7 +169,7 @@ cw_b2f_loop_32:
          stmdb to!, {r3-r9,ip}
          bgt     cw_b2f_loop_32
@@ -537,7 +537,7 @@ index eb560d8f0..be8da136b 100644
 +        addslt  r2, #32
          beq     conjoint_words_finish
          cmp     r2, #16
-         blt        cw_b2f_copy_small
+ 	blt	cw_b2f_copy_small
 @@ -221,7 +221,7 @@ cs_f2b_loop_32:
          stmia to!, {r3 - r9, ip}
          bgt     cs_f2b_loop_32
@@ -561,8 +561,8 @@ index eb560d8f0..be8da136b 100644
 +        strhge  r4, [to], #2
 +        strhgt  r5, [to], #2
          b       conjoint_shorts_finish
-
-         # Destination not aligned
+ 
+ 	# Destination not aligned
 @@ -299,11 +299,11 @@ cs_f2b_4_u:
          beq     conjoint_shorts_finish
          cmp     r2, #4
@@ -577,8 +577,8 @@ index eb560d8f0..be8da136b 100644
 +        strhge  r4, [to], #2
 +        strhgt  r5, [to], #2
          b       conjoint_shorts_finish
-
-         # Src and dest overlap, copy in a descending order
+ 
+ 	# Src and dest overlap, copy in a descending order
 @@ -326,7 +326,7 @@ cs_b2f_loop_32:
          stmdb to!, {r3-r9,ip}
          bgt     cs_b2f_loop_32
@@ -602,8 +602,8 @@ index eb560d8f0..be8da136b 100644
 +        strhge  r4, [to, #-2]!
 +        strhgt  r5, [to, #-2]!
          b       conjoint_shorts_finish
-
-         # Destination not aligned
+ 
+ 	# Destination not aligned
 @@ -391,7 +391,7 @@ cs_b2f_16_loop_u:
          bgt     cs_b2f_16_loop_u
          beq     conjoint_shorts_finish
@@ -611,7 +611,7 @@ index eb560d8f0..be8da136b 100644
 -        addlts  r2, #16
 +        addslt  r2, #16
          ldr     r3, [from]
-         cmp     r2, #10
+ 	cmp     r2, #10
          blt     cs_b2f_2_u_loop
 @@ -454,7 +454,7 @@ cl_f2b_loop_32:
          stmia to!, {r3 - r9, ip}
@@ -623,14 +623,14 @@ index eb560d8f0..be8da136b 100644
  conjoint_longs_small:
          cmp     r2, #16
 @@ -487,7 +487,7 @@ cl_b2f_loop_32:
-         stmdb         to!, {r3 - r9, ip}
+         stmdb 	to!, {r3 - r9, ip}
          bgt     cl_b2f_loop_32
  cl_b2f_loop_32_finish:
 -        addlts  r2, #32
 +        addslt  r2, #32
          beq     conjoint_longs_finish
          cmp     r2, #16
-         blt        cl_b2f_copy_8
+ 	blt	cl_b2f_copy_8
 diff --git a/src/hotspot/os_cpu/linux_arm/os_linux_arm.cpp b/src/hotspot/os_cpu/linux_arm/os_linux_arm.cpp
 index d4c9bb304..3123efef2 100644
 --- a/src/hotspot/os_cpu/linux_arm/os_linux_arm.cpp
@@ -645,11 +645,11 @@ index d4c9bb304..3123efef2 100644
 +# include "fpu_control.h" //include the local header
 +#endif
  # include <asm/ptrace.h>
-
+ 
  #define SPELL_REG_SP  "sp"
 @@ -90,8 +94,14 @@ enum {
  #endif
-
+ 
  address os::current_stack_pointer() {
 +#if defined(__clang__) || defined(__llvm__)
 +  void *sp;
@@ -660,7 +660,7 @@ index d4c9bb304..3123efef2 100644
    return sp;
 +#endif
  }
-
+ 
  char* os::non_memory_address_word() {
 @@ -415,8 +425,8 @@ void os::setup_fpu() {
  #if !defined(__SOFTFP__) && defined(__VFP_FP__)
@@ -699,7 +699,7 @@ index 000000000..605302c09
 +   <http://www.gnu.org/licenses/>.  */
 +
 +#ifndef _FPU_CONTROL_H
-+#define _FPU_CONTROL_H        1
++#define _FPU_CONTROL_H	1
 +
 +/* Note that this file sets on x86-64 only the x87 FPU, it does not
 +   touch the SSE unit.  */
@@ -747,7 +747,7 @@ index 000000000..605302c09
 +#define _FPU_MASK_PM  0x20
 +
 +/* precision control */
-+#define _FPU_EXTENDED 0x300        /* libm requires double extended precision.  */
++#define _FPU_EXTENDED 0x300	/* libm requires double extended precision.  */
 +#define _FPU_DOUBLE   0x200
 +#define _FPU_SINGLE   0x0
 +
@@ -787,7 +787,7 @@ index 000000000..605302c09
 +/* Default control word set at startup.  */
 +extern fpu_control_t __fpu_control;
 +
-+#endif        /* fpu_control.h */
++#endif	/* fpu_control.h */
 diff --git a/src/hotspot/os_cpu/linux_x86/os_linux_x86.cpp b/src/hotspot/os_cpu/linux_x86/os_linux_x86.cpp
 index 90c7d3c93..0a10fba48 100644
 --- a/src/hotspot/os_cpu/linux_x86/os_linux_x86.cpp
@@ -802,7 +802,7 @@ index 90c7d3c93..0a10fba48 100644
 +#elif defined(__ANDROID__)
 +# include "fpu_control.h"
  #endif
-
+ 
  #ifdef AMD64
 diff --git a/src/hotspot/share/utilities/elfFile.hpp b/src/hotspot/share/utilities/elfFile.hpp
 index 32ce08821..7103f3736 100644
@@ -810,19 +810,19 @@ index 32ce08821..7103f3736 100644
 +++ b/src/hotspot/share/utilities/elfFile.hpp
 @@ -47,8 +47,10 @@ typedef Elf64_Phdr      Elf_Phdr;
  typedef Elf64_Sym       Elf_Sym;
-
+ 
  #if !defined(_ALLBSD_SOURCE) || defined(__APPLE__)
 +#ifndef ELF_ST_TYPE
  #define ELF_ST_TYPE ELF64_ST_TYPE
  #endif
 +#endif
-
+ 
  #else
-
+ 
 @@ -62,7 +64,7 @@ typedef Elf32_Shdr      Elf_Shdr;
  typedef Elf32_Phdr      Elf_Phdr;
  typedef Elf32_Sym       Elf_Sym;
-
+ 
 -#if !defined(_ALLBSD_SOURCE) || defined(__APPLE__)
 +#if (!defined(_ALLBSD_SOURCE) || defined(__APPLE__)) && !defined(ELF_ST_TYPE)
  #define ELF_ST_TYPE ELF32_ST_TYPE
@@ -1278,7 +1278,7 @@ index 6074d323f..8b337d6e3 100644
 +++ b/src/java.base/unix/classes/sun/net/dns/ResolverConfigurationImpl.java
 @@ -63,8 +63,9 @@ public final class ResolverConfigurationImpl
          ArrayList<String> ll = new ArrayList<>();
-
+ 
          try {
 +            String resolvPath = System.getProperty("ext.net.resolvPath", "/etc/resolv.conf");
              BufferedReader in =
@@ -1294,7 +1294,7 @@ index 230de04c0..8e858b736 100644
 @@ -46,6 +46,100 @@
  #include "java_props_macosx.h"
  #endif
-
+ 
 +#ifdef __ANDROID__
 +// From https://android.googlesource.com/platform/bionic/+/master/libc/bionic/langinfo.cpp
 +/*
@@ -1399,7 +1399,7 @@ index 460503cd7..193480e73 100644
 @@ -31,7 +31,7 @@
  #include "jni_util.h"
  #include "dlfcn.h"
-
+ 
 -#if defined(LINUX) && (defined(_GNU_SOURCE) || \
 +#if !defined(__ANDROID__) && defined(LINUX) && (defined(_GNU_SOURCE) || \
           (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE < 200112L \
@@ -1690,7 +1690,7 @@ index 21ef40688..b8c2520d2 100644
 -        /* Not implemented */
 -    }
  #endif
-
+ 
      if (exec_path == NULL) {
 diff --git a/src/java.base/unix/native/libnet/net_util_md.h b/src/java.base/unix/native/libnet/net_util_md.h
 index 902cf9673..3b8acd66b 100644
@@ -1699,7 +1699,7 @@ index 902cf9673..3b8acd66b 100644
 @@ -26,6 +26,9 @@
  #ifndef NET_UTILS_MD_H
  #define NET_UTILS_MD_H
-
+ 
 +#ifdef __ANDROID__
 +#include <netinet/in.h>
 +#endif
@@ -1714,7 +1714,7 @@ index 9371bc001..ab7dd0fc0 100644
  #if defined(__linux__)
  static statx_func* my_statx_func = NULL;
  #endif
-
+ 
 +#ifdef __ANDROID__
 +/*
 + * TODO: Android lacks support for the methods listed below.  In it's place are
@@ -1756,7 +1756,7 @@ index 9371bc001..ab7dd0fc0 100644
 @@ -857,4 +857,5 @@
      int err = 0;
 +    struct timespec times2[2];
-
+ 
 -    times[0].tv_sec = accessTime / 1000000000;
 +    times[0].tv_sec = times2[0].tv_sec = accessTime / 1000000000;
      times[0].tv_nsec = accessTime % 1000000000;
@@ -1770,12 +1770,12 @@ index b2dedca35..c01ccfb8d 100644
  #include <jvm.h>
 +#include <stdbool.h>
  #include "gdefs.h"
-
+ 
  #include <sys/param.h>
 @@ -98,6 +99,30 @@ JNIEXPORT jboolean JNICALL AWTIsHeadless() {
    #define HEADLESS_PATH "/libawt_headless.so"
  #endif
-
+ 
 +static bool read_so_path_from_maps(const char* so_name, char* buf) {
 +  FILE *fp = fopen("/proc/self/maps", "r");
 +
@@ -1817,7 +1817,7 @@ index 490eea9a5..27ee1c23e 100644
 +++ b/src/java.instrument/unix/native/libinstrument/EncodingSupport_md.c
 @@ -65,7 +65,11 @@ utfInitialize(void)
      (void)setlocale(LC_ALL, "");
-
+ 
      /* Get the codeset name */
 +#ifndef __ANDROID__
      codeset = (char*)nl_langinfo(CODESET);
@@ -1841,7 +1841,7 @@ index f5573930d..b64e30046 100644
 +            codeset = "ASCII";
 +#endif
          }
-
+ 
          if (codeset == NULL) {
 diff --git a/src/hotspot/os_cpu/linux_aarch64/javaThread_linux_aarch64.hpp b/src/hotspot/os_cpu/linux_aarch64/javaThread_linux_aarch64.hpp
 index c6e012ecf..d4f956756 100644
@@ -1850,12 +1850,12 @@ index c6e012ecf..d4f956756 100644
 @@ -47,6 +47,8 @@ private:
    bool pd_get_top_frame(frame* fr_addr, void* ucontext, bool isInJava);
  public:
-
+ 
 -  static Thread *aarch64_get_thread_helper();
 +  static Thread *aarch64_get_thread_helper() {
 +    return Thread::current();
 +  }
-
+ 
  #endif // OS_CPU_LINUX_AARCH64_JAVATHREAD_LINUX_AARCH64_HPP
 
 diff --git a/src/java.base/unix/native/libnet/net_util_md.c b/src/java.base/unix/native/libnet/net_util_md.c
@@ -1865,7 +1865,7 @@ index 4ec11a136..01b85db4d 100644
 @@ -129,6 +129,7 @@ jint  IPv6_supported()
      SOCKETADDRESS sa;
      socklen_t sa_len = sizeof(SOCKETADDRESS);
-
+ 
 +#ifndef __ANDROID__  // ANDROID: skip check, see libcore commit ae218d9b
      fd = socket(AF_INET6, SOCK_STREAM, 0) ;
      if (fd < 0) {
@@ -1875,7 +1875,7 @@ index 4ec11a136..01b85db4d 100644
      }
  #endif
 +#endif  // !defined __ANDROID__
-
+ 
      /*
       *  OK we may have the stack available in the kernel,
 diff --git a/make/autoconf/toolchain.m4 b/make/autoconf/toolchain.m4
@@ -1886,7 +1886,7 @@ index 7a24815..d20a9ff 100644
  # All valid toolchains, regardless of platform (used by help.m4)
 -VALID_TOOLCHAINS_all="gcc clang microsoft"
 +VALID_TOOLCHAINS_all="clang gcc microsoft"
-
+ 
  # These toolchains are valid on different platforms
 -VALID_TOOLCHAINS_linux="gcc clang"
 +VALID_TOOLCHAINS_linux="clang gcc"
@@ -1909,7 +1909,7 @@ index a1fc81564..fc0356e92 100644
 @@ -74,12 +74,7 @@ AC_DEFUN_ONCE([LIB_DETERMINE_DEPENDENCIES],
      NEEDS_LIB_FREETYPE=true
    fi
-
+ 
 -  # Check if alsa is needed
 -  if test "x$OPENJDK_TARGET_OS" = xlinux; then
 -    NEEDS_LIB_ALSA=true
@@ -1917,7 +1917,7 @@ index a1fc81564..fc0356e92 100644
 -    NEEDS_LIB_ALSA=false
 -  fi
 +  NEEDS_LIB_ALSA=false
-
+ 
    # Check if ffi is needed
    if HOTSPOT_CHECK_JVM_VARIANT(zero) || test "x$ENABLE_FALLBACK_LINKER" = "xtrue"; then
 diff --git a/make/hotspot/lib/JvmFlags.gmk b/make/hotspot/lib/JvmFlags.gmk
@@ -1927,7 +1927,7 @@ index e5929ab..08597d5 100644
 @@ -51,6 +51,12 @@ JVM_CFLAGS_INCLUDES += \
      -I$(TOPDIR)/src/java.base/share/native/libjimage \
      #
-
+ 
 +ifeq ($(call isTargetOs, android ios), true)
 +  JVM_CFLAGS_INCLUDES += \
 +    -I$(TOPDIR)/src/hotspot/os/linux \
@@ -1957,7 +1957,7 @@ index 902cf96..a3f24b4 100644
 @@ -30,6 +30,10 @@
  #include <poll.h>
  #include <sys/socket.h>
-
+ 
 +#ifdef __ANDROID__
 +#include <netinet/in.h>
 +#endif
@@ -1972,19 +1972,19 @@ index 2dc0b61..78508bc 100644
 @@ -35,7 +35,9 @@
  #define ELF_ADDR        Elf64_Addr
  #define ELF_AUXV        Elf64_auxv_t
-
+ 
 +#ifndef ANDROID
  #define ELF_ST_TYPE     ELF64_ST_TYPE
 +#endif
-
+ 
  #else
-
+ 
 diff --git a/src/jdk.hotspot.agent/linux/native/libsaproc/ps_core.c b/src/jdk.hotspot.agent/linux/native/libsaproc/ps_core.c
 index b1b69c8..972f9e3 100644
 --- a/src/jdk.hotspot.agent/linux/native/libsaproc/ps_core.c
 +++ b/src/jdk.hotspot.agent/linux/native/libsaproc/ps_core.c
 @@ -184,6 +184,9 @@ static ps_prochandle_ops core_ops = {
-
+ 
  // read regs and create thread from NT_PRSTATUS entries from core file
  static bool core_handle_prstatus(struct ps_prochandle* ph, const char* buf, size_t nbytes) {
 +#ifdef __ANDROID__
@@ -1995,11 +1995,11 @@ index b1b69c8..972f9e3 100644
     prstatus_t* prstat = (prstatus_t*) buf;
 @@ -243,6 +246,7 @@ static bool core_handle_prstatus(struct ps_prochandle* ph, const char* buf, size
     }
-
+ 
     return true;
 +#endif // __ANDROID__
  }
-
+ 
  #define ROUNDUP(x, y)  ((((x)+((y)-1))/(y))*(y))
 diff --git a/make/autoconf/flags-cflags.m4 b/make/autoconf/flags-cflags.m4
 index e80d9a98957db..44ccb2fca1141 100644
@@ -2017,7 +2017,7 @@ index e80d9a98957db..44ccb2fca1141 100644
 @@ -766,6 +766,13 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
        $1_CFLAGS_CPU="-mcpu=pwr8"
      fi
-
+ 
 +    if test "x$FLAGS_CPU" = xarm; then
 +      # For whatever reason arm build with clang fails with:
 +      #   ad_arm.cpp:19849:4: error: "ARM must be defined"
@@ -2047,7 +2047,7 @@ index 351d64fdd1d57..08ab416cde3e1 100644
 +++ b/make/data/hotspot-symbols/version-script-clang.txt
 @@ -3,6 +3,5 @@ SUNWprivate_1.1 {
      *;
-
+ 
    local:
 -    _fini;
 -    _init;
@@ -2060,11 +2060,11 @@ index 6b5edc85b2369..d0f737bbfa5d9 100644
 @@ -162,7 +162,7 @@ endif
  ifeq ($(call isTargetOs, linux), true)
    HOTSPOT_VERSION_SCRIPT := $(TOPDIR)/make/data/hotspot-symbols/version-script-$(TOOLCHAIN_TYPE).txt
-
+ 
 -  JVM_LDFLAGS += -Wl,-version-script=$(HOTSPOT_VERSION_SCRIPT)
 +  JVM_LDFLAGS += -Wl,-version-script=$(HOTSPOT_VERSION_SCRIPT) -Wl,--no-undefined-version -Wl,--no-undefined
  endif
-
+ 
  ################################################################################
 diff --git a/make/hotspot/lib/JvmOverrideFiles.gmk b/make/hotspot/lib/JvmOverrideFiles.gmk
 index 3eedb64a597a3..d773c5f949523 100644
@@ -2073,7 +2073,7 @@ index 3eedb64a597a3..d773c5f949523 100644
 @@ -63,7 +63,8 @@ ifeq ($(call isTargetOs, linux), true)
        $(OPT_SPEED_SRC) \
        #
-
+ 
 -  ifeq ($(call isTargetCpu, x86), true)
 +  #ifeq ($(call isTargetCpu, x86), true)
 +  ifeq (false, true)
@@ -2085,9 +2085,9 @@ index b747fe4d88f87..542c130873c1f 100644
 --- a/src/hotspot/os/linux/os_linux.cpp
 +++ b/src/hotspot/os/linux/os_linux.cpp
 @@ -137,10 +137,10 @@
-
+ 
  #define MAX_PATH    (2 * K)
-
+ 
 -#ifdef MUSL_LIBC
 +#if defined(MUSL_LIBC) || (defined(__ANDROID__) && __ANDROID_API__ < 24)
  // dlvsym is not a part of POSIX
@@ -2099,7 +2099,7 @@ index b747fe4d88f87..542c130873c1f 100644
     // load the latest version of symbol
 @@ -1988,6 +1988,7 @@ void * os::Linux::dll_load_in_vmthread(const char *filename, char *ebuf,
  }
-
+ 
  const char* os::Linux::dll_path(void* lib) {
 +#ifdef RTLD_DI_LINKMAP
    struct link_map *lmap;
@@ -2113,7 +2113,7 @@ index b747fe4d88f87..542c130873c1f 100644
 +  return NULL;
 +#endif
  }
-
+ 
  static unsigned count_newlines(const char* s) {
 diff --git a/src/hotspot/os/posix/os_posix.cpp b/src/hotspot/os/posix/os_posix.cpp
 index d417f384a18c8..d26f81a4d5914 100644
@@ -2122,16 +2122,16 @@ index d417f384a18c8..d26f81a4d5914 100644
 @@ -107,6 +107,8 @@ static int clock_tics_per_sec = 100;
  // Platform minimum stack allowed
  size_t os::_os_min_stack_allowed = PTHREAD_STACK_MIN;
-
+ 
 +static bool read_so_path_from_maps(const char* so_name, char* buf, int buflen);
 +
  // Check core dump limit and report possible place where core can be found
  void os::check_core_dump_prerequisites(char* buffer, size_t bufferSize, bool check_only) {
    if (!FLAG_IS_DEFAULT(CreateCoredumpOnCrash) && !CreateCoredumpOnCrash) {
 @@ -1064,6 +1066,30 @@ bool os::same_files(const char* file1, const char* file2) {
-
+ 
  static char saved_jvm_path[MAXPATHLEN] = {0};
-
+ 
 +static bool read_so_path_from_maps(const char* so_name, char* buf, int buflen) {
 +  FILE *fp = fopen("/proc/self/maps", "r");
 +  assert(fp, "Failed to open /proc/self/maps");
@@ -2184,7 +2184,7 @@ index d417f384a18c8..d26f81a4d5914 100644
      }
    }
 +#endif
-
+ 
    strncpy(saved_jvm_path, buf, MAXPATHLEN);
    saved_jvm_path[MAXPATHLEN - 1] = '\0';
 diff --git a/src/hotspot/share/jvmci/jvmciRuntime.cpp b/src/hotspot/share/jvmci/jvmciRuntime.cpp
@@ -2192,7 +2192,7 @@ index ad848998823f2..bf54f44fa8d78 100644
 --- a/src/hotspot/share/jvmci/jvmciRuntime.cpp
 +++ b/src/hotspot/share/jvmci/jvmciRuntime.cpp
 @@ -1248,7 +1248,7 @@ JNIEnv* JVMCIRuntime::init_shared_library_javavm(int* create_JavaVM_err, const c
-
+ 
      ResourceMark rm;
      JavaVMInitArgs vm_args;
 -    vm_args.version = JNI_VERSION_1_2;
@@ -2203,12 +2203,12 @@ index ad848998823f2..bf54f44fa8d78 100644
 @@ -1270,7 +1270,7 @@ JNIEnv* JVMCIRuntime::init_shared_library_javavm(int* create_JavaVM_err, const c
      options[5].optionString = (char*) "_createvm_errorstr";
      options[5].extraInfo = (void*) err_msg;
-
+ 
 -    vm_args.version = JNI_VERSION_1_2;
 +    vm_args.version = JNI_VERSION_24;
      vm_args.options = options;
      vm_args.nOptions = sizeof(options) / sizeof(JavaVMOption);
-
+ 
 diff --git a/src/java.base/share/classes/jdk/internal/util/StaticProperty.java b/src/java.base/share/classes/jdk/internal/util/StaticProperty.java
 index 4fb3ae7a184ee..b5cc8b8d8804f 100644
 --- a/src/java.base/share/classes/jdk/internal/util/StaticProperty.java
@@ -2240,7 +2240,7 @@ index 1d0c8d21d3757..7cc8885a8c17c 100644
 @@ -339,13 +339,9 @@ throwIOExceptionImpl(JNIEnv *env, int errnum, const char *externalDetail, const
      char tmpbuf[1024];
      jstring s;
-
+ 
 -    if (errnum != 0) {
 -        int ret = getErrorString(errnum, tmpbuf, sizeof(tmpbuf));
 -        if (ret != EINVAL) {
@@ -2261,7 +2261,7 @@ index fbf996886ae40..9218aa5605914 100644
 @@ -70,7 +70,7 @@
  // by defining binary compatible statx structs in this file and
  // not relying on included headers.
-
+ 
 -#ifndef __GLIBC__
 +#if !defined(__BIONIC__) && !defined(__GLIBC__)
  // Alpine doesn't know these types, define them
@@ -2282,12 +2282,12 @@ index 0d352c36bbebe..064bf7439f021 100644
 +++ b/src/java.desktop/unix/native/common/java2d/x11/X11FontScaler_md.c
 @@ -47,7 +47,7 @@ static int pixmapWidth = 0;
  static int pixmapHeight = 0;
-
+ 
  #define FONT_AWT_LOCK() \
 -env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2); \
 +env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_24); \
  AWT_LOCK();
-
+ 
  int CreatePixmapAndGC (int width, int height)
 diff --git a/src/java.desktop/unix/native/libawt/awt/awt_LoadLibrary.c b/src/java.desktop/unix/native/libawt/awt/awt_LoadLibrary.c
 index 356b52dfb3487..d2cd0e043c9f9 100644
@@ -2296,14 +2296,14 @@ index 356b52dfb3487..d2cd0e043c9f9 100644
 @@ -57,14 +57,14 @@ typedef jint JNICALL JNI_OnLoad_type(JavaVM *vm, void *reserved);
     first loaded */
  JNIEXPORT JavaVM *jvm;
-
+ 
 -JNIEXPORT jboolean JNICALL AWTIsHeadless() {
 +JNIEXPORT jboolean JNICALL AWTIsHeadless(void) {
      static JNIEnv *env = NULL;
      static jboolean isHeadless;
      jmethodID headlessFn;
      jclass graphicsEnvClass;
-
+ 
      if (env == NULL) {
 -        env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
 +        env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_24);
@@ -2317,22 +2317,22 @@ index 356b52dfb3487..d2cd0e043c9f9 100644
 -    JNIEnv *env = (JNIEnv *)JNU_GetEnv(vm, JNI_VERSION_1_2);
 +    JNIEnv *env = (JNIEnv *)JNU_GetEnv(vm, JNI_VERSION_24);
      void *v;
-
+ 
      if (awtHandle != NULL) {
          /* Avoid several loading attempts */
 -        return JNI_VERSION_1_2;
 +        return JNI_VERSION_24;
      }
-
+ 
      jvm = vm;
 @@ -152,7 +152,7 @@ AWT_OnLoad(JavaVM *vm, void *reserved)
          awtHandle = dlopen(buf, RTLD_LAZY | RTLD_GLOBAL);
      }
-
+ 
 -    return JNI_VERSION_1_2;
 +    return JNI_VERSION_24;
  }
-
+ 
  JNIEXPORT jint JNICALL
 diff --git a/src/hotspot/os_cpu/linux_arm/linux_arm_32.S b/src/hotspot/os_cpu/linux_arm/linux_arm_32.S
 index a866858dae520..9629aef8e251b 100644
@@ -2346,7 +2346,7 @@ index a866858dae520..9629aef8e251b 100644
 +        addslt  r2, #32
          beq     disjoint_words_finish
          cmp     r2, #16
-         blt        disjoint_words_small
+         blt	disjoint_words_small
 @@ -114,7 +114,7 @@ cw_f2b_loop_32:
          stmia to!, {r3 - r9, ip}
          bgt     cw_f2b_loop_32
@@ -2355,7 +2355,7 @@ index a866858dae520..9629aef8e251b 100644
 +        addslt  r2, #32
          beq     conjoint_words_finish
          cmp     r2, #16
-         blt        conjoint_words_small
+         blt	conjoint_words_small
 @@ -147,7 +147,7 @@ cw_b2f_loop_32:
          stmdb to!, {r3-r9,ip}
          bgt     cw_b2f_loop_32
@@ -2364,7 +2364,7 @@ index a866858dae520..9629aef8e251b 100644
 +        addslt  r2, #32
          beq     conjoint_words_finish
          cmp     r2, #16
-         blt        cw_b2f_copy_small
+         blt	cw_b2f_copy_small
 @@ -199,7 +199,7 @@ cs_f2b_loop_32:
          stmia to!, {r3 - r9, ip}
          bgt     cs_f2b_loop_32
@@ -2388,7 +2388,7 @@ index a866858dae520..9629aef8e251b 100644
 +        strhge  r4, [to], #2
 +        strhgt  r5, [to], #2
          b       conjoint_shorts_finish
-
+ 
          # Destination not aligned
 @@ -277,11 +277,11 @@ cs_f2b_4_u:
          beq     conjoint_shorts_finish
@@ -2404,7 +2404,7 @@ index a866858dae520..9629aef8e251b 100644
 +        strhge  r4, [to], #2
 +        strhgt  r5, [to], #2
          b       conjoint_shorts_finish
-
+ 
          # Src and dest overlap, copy in a descending order
 @@ -304,7 +304,7 @@ cs_b2f_loop_32:
          stmdb to!, {r3-r9,ip}
@@ -2429,7 +2429,7 @@ index a866858dae520..9629aef8e251b 100644
 +        strhge  r4, [to, #-2]!
 +        strhgt  r5, [to, #-2]!
          b       conjoint_shorts_finish
-
+ 
          # Destination not aligned
 @@ -369,7 +369,7 @@ cs_b2f_16_loop_u:
          bgt     cs_b2f_16_loop_u
@@ -2450,14 +2450,14 @@ index a866858dae520..9629aef8e251b 100644
  conjoint_longs_small:
          cmp     r2, #16
 @@ -465,7 +465,7 @@ cl_b2f_loop_32:
-         stmdb         to!, {r3 - r9, ip}
+         stmdb 	to!, {r3 - r9, ip}
          bgt     cl_b2f_loop_32
  cl_b2f_loop_32_finish:
 -        addlts  r2, #32
 +        addslt  r2, #32
          beq     conjoint_longs_finish
          cmp     r2, #16
-         blt        cl_b2f_copy_8
+         blt	cl_b2f_copy_8
 diff --git a/src/hotspot/os/linux/os_perf_linux.cpp b/src/hotspot/os/linux/os_perf_linux.cpp
 index 7caf8f98a00fb..7b2dd23a44ca2 100644
 --- a/src/hotspot/os/linux/os_perf_linux.cpp
@@ -2484,7 +2484,7 @@ index 7caf8f98a00fb..7b2dd23a44ca2 100644
 @@ -47,6 +58,298 @@
  #include <sys/types.h>
  #include <unistd.h>
-
+ 
 +#ifdef __ANDROID__
 +/*
 + * Copyright (C) 2015 The Android Open Source Project
@@ -2787,7 +2787,7 @@ index 529cf22078ea5..9041f85d76474 100644
 @@ -36,29 +36,4 @@
  #include <unistd.h>
  #endif
-
+ 
 -// If needed, add os::strndup and use that instead.
 -FORBID_C_FUNCTION(char* strndup(const char*, size_t), noexcept, "don't use");
 -
@@ -2821,7 +2821,7 @@ index 47becd7b4c74d..f6cbf8db65b2f 100644
 @@ -44,40 +44,4 @@
  #include "forbiddenFunctions_posix.hpp"
  #endif
-
+ 
 -// Forbid the use of various C library functions.  Some of these have os::
 -// replacements that should be used instead.  Others are considered obsolete
 -// or have security concerns, either with preferred alternatives, or to be
@@ -2864,7 +2864,7 @@ index 912e4f622dbae..8dac110adecc0 100644
 --- a/make/conf/branding.conf
 +++ b/make/conf/branding.conf
 @@ -25,7 +25,7 @@
-
+ 
  LAUNCHER_NAME=openjdk
  PRODUCT_NAME=OpenJDK
 -PRODUCT_SUFFIX="Runtime Environment"

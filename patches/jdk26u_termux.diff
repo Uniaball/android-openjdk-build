@@ -10,14 +10,14 @@ index e80d9a98957db..2660ac1700371 100644
 -        SET_EXECUTABLE_ORIGIN="$SET_EXECUTABLE_ORIGIN -Wl,--disable-new-dtags"
 -      fi
        SET_SHARED_LIBRARY_NAME='-Wl,-soname=[$]1'
-
+ 
        # arm specific settings
 diff --git a/src/hotspot/os/linux/os_linux.cpp b/src/hotspot/os/linux/os_linux.cpp
 index b747fe4d88f87..13892d5d8b2bd 100644
 --- a/src/hotspot/os/linux/os_linux.cpp
 +++ b/src/hotspot/os/linux/os_linux.cpp
 @@ -1521,7 +1521,13 @@ int os::current_process_id() {
-
+ 
  // This must be hard coded because it's the system's temporary
  // directory not the java application's temp directory, ala java.io.tmpdir.
 -const char* os::get_temp_directory() { return "/tmp"; }
@@ -28,17 +28,17 @@ index b747fe4d88f87..13892d5d8b2bd 100644
 +  return "@TERMUX_PREFIX@/tmp";
 +#endif
 +}
-
+ 
  // check if addr is inside libjvm.so
  bool os::address_is_in_vm(address addr) {
 @@ -2411,7 +2417,7 @@ void os::Linux::print_process_memory_info(outputStream* st) {
  }
-
+ 
  bool os::Linux::print_ld_preload_file(outputStream* st) {
 -  return _print_ascii_file("/etc/ld.so.preload", st, nullptr, "/etc/ld.so.preload:");
 +  return _print_ascii_file("@TERMUX_PREFIX@/etc/ld.so.preload", st, nullptr, "@TERMUX_PREFIX@/etc/ld.so.preload:");
  }
-
+ 
  void os::Linux::print_uptime_info(outputStream* st) {
 diff --git a/src/hotspot/share/utilities/virtualizationSupport.cpp b/src/hotspot/share/utilities/virtualizationSupport.cpp
 index 5feff1039ef6e..45ae9de4843ef 100644
@@ -64,7 +64,7 @@ index 44e957f54fb06..ddbb02b53e540 100644
 -        return getMountEntries("/etc/mtab");
 +        return getMountEntries("@TERMUX_PREFIX@/etc/mtab");
      }
-
+ 
      @Override
 diff --git a/src/java.base/linux/classes/sun/nio/fs/LinuxFileSystemProvider.java b/src/java.base/linux/classes/sun/nio/fs/LinuxFileSystemProvider.java
 index a1c2aed4bd24c..23c7df39c31bf 100644
@@ -76,7 +76,7 @@ index a1c2aed4bd24c..23c7df39c31bf 100644
          Path userMimeTypes = Path.of(userHome, ".mime.types");
 -        Path etcMimeTypes = Path.of("/etc/mime.types");
 +        Path etcMimeTypes = Path.of("@TERMUX_PREFIX@/etc/mime.types");
-
+ 
          return chain(new MimeTypesFileTypeDetector(userMimeTypes),
                       new MimeTypesFileTypeDetector(etcMimeTypes));
 diff --git a/src/java.base/share/classes/sun/security/jca/ProviderConfig.java b/src/java.base/share/classes/sun/security/jca/ProviderConfig.java
@@ -99,7 +99,7 @@ index 6072bff50c6bd..0dfd43a5b781e 100644
 @@ -52,6 +52,32 @@
  #include "jni.h"
  #include "stdbool.h"
-
+ 
 +#ifdef __TERMUX__
 +#include <stdbool.h>
 +#include <dlfcn.h>
@@ -132,7 +132,7 @@ index 6072bff50c6bd..0dfd43a5b781e 100644
 @@ -251,6 +277,8 @@ JLI_Launch(int argc, char ** argv,              /* main argc, argv */
      _is_java_args = javaargs;
      _wc_enabled = cpwildcard;
-
+ 
 +    android_disable_tags();
 +
      InitLauncher(javaw);
@@ -143,7 +143,7 @@ index 2f633ad711d98..c8f5206896559 100644
 --- a/src/java.base/unix/classes/sun/net/dns/ResolverConfigurationImpl.java
 +++ b/src/java.base/unix/classes/sun/net/dns/ResolverConfigurationImpl.java
 @@ -64,7 +64,7 @@ private ArrayList<String> resolvconf(String keyword,
-
+ 
          try {
              BufferedReader in =
 -                new BufferedReader(new FileReader("/etc/resolv.conf"));
@@ -162,7 +162,7 @@ index 1d0c8d21d3757..67da2e9b03460 100644
 -    return ":/bin:/usr/bin";
 +    return ":@TERMUX_PREFIX@/bin";
  }
-
+ 
  static const char*
 diff --git a/src/java.base/unix/native/libjava/TimeZone_md.c b/src/java.base/unix/native/libjava/TimeZone_md.c
 index cd253edde6017..2ce27aad3103f 100644
@@ -170,7 +170,7 @@ index cd253edde6017..2ce27aad3103f 100644
 +++ b/src/java.base/unix/native/libjava/TimeZone_md.c
 @@ -46,12 +46,12 @@
  #define fileclose       fclose
-
+ 
  #if defined(__linux__) || defined(_ALLBSD_SOURCE)
 -static const char *ZONEINFO_DIR = "/usr/share/zoneinfo";
 -static const char *DEFAULT_ZONEINFO_FILE = "/etc/localtime";
@@ -184,7 +184,7 @@ index cd253edde6017..2ce27aad3103f 100644
 +static const char *ZONEINFO_DIR = "@TERMUX_PREFIX@/usr/share/lib/zoneinfo";
 +static const char *DEFAULT_ZONEINFO_FILE = "@TERMUX_PREFIX@/usr/share/lib/zoneinfo/localtime";
  #endif /* defined(__linux__) || defined(_ALLBSD_SOURCE) */
-
+ 
  static const char popularZones[][4] = {"UTC", "GMT"};
 diff --git a/src/java.desktop/share/classes/com/sun/java/swing/plaf/gtk/Metacity.java b/src/java.desktop/share/classes/com/sun/java/swing/plaf/gtk/Metacity.java
 index 4f7d19355c80e..a06335f57101a 100644
@@ -206,14 +206,14 @@ index 4f7d19355c80e..a06335f57101a 100644
 +                    "@TERMUX_PREFIX@/local/share/themes",
 +                    "@TERMUX_PREFIX@/local/share/gnome/themes"
                  };
-
+ 
                  URL themeDir = null;
 diff --git a/src/java.desktop/share/classes/com/sun/media/sound/SoftSynthesizer.java b/src/java.desktop/share/classes/com/sun/media/sound/SoftSynthesizer.java
 index 4f4b82164868b..44232899606ed 100644
 --- a/src/java.desktop/share/classes/com/sun/media/sound/SoftSynthesizer.java
 +++ b/src/java.desktop/share/classes/com/sun/media/sound/SoftSynthesizer.java
 @@ -687,11 +687,11 @@ public InputStream run() {
-
+ 
                          File[] systemSoundFontsDir = new File[] {
                              /* Arch, Fedora, Mageia */
 -                            new File("/usr/share/soundfonts/"),
@@ -226,7 +226,7 @@ index 4f4b82164868b..44232899606ed 100644
 +                            new File("@TERMUX_PREFIX@/share/sounds/sf2/"),
 +                            new File("@TERMUX_PREFIX@/local/share/sounds/sf2/"),
                          };
-
+ 
                          /*
 diff --git a/src/java.desktop/share/classes/sun/font/SunFontManager.java b/src/java.desktop/share/classes/sun/font/SunFontManager.java
 index 2831cae2573f0..b17896f5eb4b2 100644
@@ -234,13 +234,13 @@ index 2831cae2573f0..b17896f5eb4b2 100644
 +++ b/src/java.desktop/share/classes/sun/font/SunFontManager.java
 @@ -3337,7 +3337,7 @@ public String[] getInstalledFontFamilyNames(Locale requestedLocale) {
      protected void addNativeFontFamilyNames(TreeMap<String, String> familyNames, Locale requestedLocale) { }
-
+ 
      public void register1dot0Fonts() {
 -        String type1Dir = "/usr/openwin/lib/X11/fonts/Type1";
 +        String type1Dir = "@TERMUX_PREFIX@/openwin/lib/X11/fonts/Type1";
          registerFontsInDir(type1Dir, true, Font2D.TYPE1_RANK, false, false);
      }
-
+ 
 diff --git a/src/java.desktop/share/classes/sun/print/PSPrinterJob.java b/src/java.desktop/share/classes/sun/print/PSPrinterJob.java
 index 03fdb532b7135..ea08efb7b414d 100644
 --- a/src/java.desktop/share/classes/sun/print/PSPrinterJob.java
@@ -281,7 +281,7 @@ index d96894660b9eb..c4e86d815894d 100644
 --- a/src/java.desktop/unix/classes/sun/print/PrintServiceLookupProvider.java
 +++ b/src/java.desktop/unix/classes/sun/print/PrintServiceLookupProvider.java
 @@ -75,10 +75,10 @@ public final class PrintServiceLookupProvider extends PrintServiceLookup
-
+ 
      // List of commands used to deal with the printer queues on AIX
      String[] lpNameComAix = {
 -      "/usr/bin/lsallq",
@@ -297,30 +297,30 @@ index d96894660b9eb..c4e86d815894d 100644
      private static final int aix_lpstat_p = 1;
 @@ -159,13 +159,13 @@ static boolean isAIX() {
      static int cmdIndex = UNINITIALIZED;
-
+ 
      String[] lpcFirstCom = {
 -        "/usr/sbin/lpc status | grep : | sed -ne '1,1 s/://p'",
 -        "/usr/sbin/lpc status | grep -E '^[ 0-9a-zA-Z_-]*@' | awk -F'@' '{print $1}'"
 +        "@TERMUX_PREFIX@/bin/lpc status | grep : | sed -ne '1,1 s/://p'",
 +        "@TERMUX_PREFIX@/bin/lpc status | grep -E '^[ 0-9a-zA-Z_-]*@' | awk -F'@' '{print $1}'"
      };
-
+ 
      String[] lpcAllCom = {
 -        "/usr/sbin/lpc status all | grep : | sed -e 's/://'",
 -        "/usr/sbin/lpc status all | grep -E '^[ 0-9a-zA-Z_-]*@' | awk -F'@' '{print $1}' | sort"
 +        "@TERMUX_PREFIX@/bin/lpc status all | grep : | sed -e 's/://'",
 +        "@TERMUX_PREFIX@/bin/lpc status all | grep -E '^[ 0-9a-zA-Z_-]*@' | awk -F'@' '{print $1}' | sort"
      };
-
+ 
      String[] lpcNameCom = {
 @@ -175,7 +175,7 @@ static boolean isAIX() {
-
-
+ 
+ 
      static int getBSDCommandIndex() {
 -        String command  = "/usr/sbin/lpc status all";
 +        String command  = "@TERMUX_PREFIX@/bin/lpc status all";
          String[] names = execCmd(command);
-
+ 
          if ((names == null) || (names.length == 0)) {
 @@ -733,7 +733,7 @@ private PrintService getNamedPrinterNameBSD(String name) {
        if (cmdIndex == UNINITIALIZED) {
@@ -329,33 +329,33 @@ index d96894660b9eb..c4e86d815894d 100644
 -      String command = "/usr/sbin/lpc status " + name + lpcNameCom[cmdIndex];
 +      String command = "@TERMUX_PREFIX@/bin/lpc status " + name + lpcNameCom[cmdIndex];
        String[] result = execCmd(command);
-
+ 
        if (result == null || !(result[0].equals(name))) {
 @@ -755,7 +755,7 @@ private String[] getAllPrinterNamesBSD() {
-
+ 
      static String getDefaultPrinterNameSysV() {
          String defaultPrinter = "lp";
 -        String command = "/usr/bin/lpstat -d";
 +        String command = "@TERMUX_PREFIX@/bin/lpstat -d";
-
+ 
          String [] names = execCmd(command);
          if (names == null || names.length == 0) {
 @@ -777,7 +777,7 @@ static String getDefaultPrinterNameSysV() {
-
+ 
      private PrintService getNamedPrinterNameSysV(String name) {
-
+ 
 -        String command = "/usr/bin/lpstat -v " + name;
 +        String command = "@TERMUX_PREFIX@/bin/lpstat -v " + name;
          String []result = execCmd(command);
-
+ 
          if (result == null || result[0].indexOf("unknown printer") > 0) {
 @@ -789,7 +789,7 @@ private PrintService getNamedPrinterNameSysV(String name) {
-
+ 
      private String[] getAllPrinterNamesSysV() {
          String defaultPrinter = "lp";
 -        String command = "/usr/bin/lpstat -v|/usr/bin/expand|/usr/bin/cut -f3 -d' ' |/usr/bin/cut -f1 -d':' | /usr/bin/sort";
 +        String command = "@TERMUX_PREFIX@/bin/lpstat -v|@TERMUX_PREFIX@/bin/expand|@TERMUX_PREFIX@/bin/cut -f3 -d' ' |@TERMUX_PREFIX@/bin/cut -f1 -d':' | @TERMUX_PREFIX@/bin/sort";
-
+ 
          String [] names = execCmd(command);
          ArrayList<String> printerNames = new ArrayList<>();
 @@ -846,11 +846,11 @@ static String[] execCmd(final String command) {
@@ -392,38 +392,38 @@ index 46211ba5960dc..1fc6bdb6bb991 100644
 @@ -227,7 +227,7 @@ private PrinterIsAcceptingJobs getPrinterIsAcceptingJobsBSD() {
                  PrintServiceLookupProvider.getBSDCommandIndex();
          }
-
+ 
 -        String command = "/usr/sbin/lpc status " + printer
 +        String command = "@TERMUX_PREFIX@/bin/lpc status " + printer
              + lpcStatusCom[PrintServiceLookupProvider.cmdIndex];
          String[] results= PrintServiceLookupProvider.execCmd(command);
-
+ 
 @@ -276,7 +276,7 @@ protected static String[] filterPrinterNamesAIX(String[] posPrinters) {
-
+ 
      private PrinterIsAcceptingJobs getPrinterIsAcceptingJobsAIX() {
          // On AIX there should not be a blank after '-a'.
 -        String command = "/usr/bin/lpstat -a" + printer;
 +        String command = "@TERMUX_PREFIX@/bin/lpstat -a" + printer;
          String[] results= PrintServiceLookupProvider.execCmd(command);
-
+ 
          // Remove headers and bogus entries added by remote printers.
 @@ -332,7 +332,7 @@ private QueuedJobCount getQueuedJobCountBSD() {
          }
-
+ 
          int qlen = 0;
 -        String command = "/usr/sbin/lpc status " + printer
 +        String command = "@TERMUX_PREFIX@/bin/lpc status " + printer
              + lpcQueueCom[PrintServiceLookupProvider.cmdIndex];
          String[] results = PrintServiceLookupProvider.execCmd(command);
-
+ 
 @@ -361,7 +361,7 @@ private QueuedJobCount getQueuedJobCountBSD() {
-
+ 
      private QueuedJobCount getQueuedJobCountAIX() {
          // On AIX there should not be a blank after '-a'.
 -        String command = "/usr/bin/lpstat -a" + printer;
 +        String command = "@TERMUX_PREFIX@/bin/lpstat -a" + printer;
          String[] results=  PrintServiceLookupProvider.execCmd(command);
-
+ 
          // Remove headers and bogus entries added by remote printers.
 diff --git a/src/java.desktop/unix/native/common/awt/fontpath.c b/src/java.desktop/unix/native/common/awt/fontpath.c
 index 95499cfc94890..7f9b420fbc68d 100644
@@ -466,7 +466,7 @@ index 681abec46c33e..144f648a2e845 100644
 --- a/src/java.prefs/unix/classes/java/util/prefs/FileSystemPreferences.java
 +++ b/src/java.prefs/unix/classes/java/util/prefs/FileSystemPreferences.java
 @@ -173,7 +173,7 @@ static Preferences getSystemRoot() {
-
+ 
      private static void setupSystemRoot() {
          String systemPrefsDirName =
 -          System.getProperty("java.util.prefs.systemRoot", "/etc/.java");
@@ -481,11 +481,11 @@ index c92a106850ba6..e7cd22a76d007 100644
 @@ -929,7 +929,7 @@ private String findMacosConfigFile() {
              return PREF_FILE;
          }
-
+ 
 -        return "/etc/krb5.conf";
 +        return "@TERMUX_PREFIX@/etc/krb5.conf";
      }
-
+ 
      private static String unquote(String s) {
 diff --git a/src/java.security.jgss/share/classes/sun/security/krb5/internal/ccache/FileCredentialsCache.java b/src/java.security.jgss/share/classes/sun/security/krb5/internal/ccache/FileCredentialsCache.java
 index a5b128f7129de..24a85295cfc00 100644
@@ -505,7 +505,7 @@ index ac993133db896..2d27b5f552fd4 100644
 --- a/src/java.smartcardio/unix/classes/sun/security/smartcardio/PlatformPCSC.java
 +++ b/src/java.smartcardio/unix/classes/sun/security/smartcardio/PlatformPCSC.java
 @@ -49,11 +49,11 @@ class PlatformPCSC {
-
+ 
      // The architecture templates are for Debian-based systems: https://wiki.debian.org/Multiarch/Tuples
      // 32-bit arm differs from the pattern of the rest and has to be specified explicitly
 -    private static final String[] LIB_TEMPLATES = { "/usr/$LIBISA/libpcsclite.so",
@@ -520,7 +520,7 @@ index ac993133db896..2d27b5f552fd4 100644
 +                                                    "@TERMUX_PREFIX@/lib/arm-linux-gnueabihf/libpcsclite.so" };
      private static final String[] LIB_SUFFIXES = { ".1", ".0", "" };
      private static final String PCSC_FRAMEWORK = "/System/Library/Frameworks/PCSC.framework/Versions/Current/PCSC";
-
+ 
 diff --git a/src/jdk.attach/linux/classes/sun/tools/attach/VirtualMachineImpl.java b/src/jdk.attach/linux/classes/sun/tools/attach/VirtualMachineImpl.java
 index af8870ecf64b3..d8afacb23b373 100644
 --- a/src/jdk.attach/linux/classes/sun/tools/attach/VirtualMachineImpl.java
@@ -531,7 +531,7 @@ index af8870ecf64b3..d8afacb23b373 100644
      // Any changes to this needs to be synchronized with HotSpot.
 -    private static final Path TMPDIR = Path.of("/tmp");
 +    private static final Path TMPDIR = Path.of("@TERMUX_PREFIX@/tmp");
-
+ 
      private static final Path PROC     = Path.of("/proc");
      private static final Path STATUS   = Path.of("status");
 diff --git a/src/jdk.hotspot.agent/linux/native/libsaproc/symtab.c b/src/jdk.hotspot.agent/linux/native/libsaproc/symtab.c
@@ -544,7 +544,7 @@ index 07cbb46d04596..5d909a7e6a93c 100644
  // could be set with an environment variable.
 -static const char debug_file_directory[] = "/usr/lib/debug";
 +static const char debug_file_directory[] = "@TERMUX_PREFIX@/lib/debug";
-
+ 
  /* The CRC used in gnu_debuglink, retrieved from
     http://sourceware.org/gdb/current/onlinedocs/gdb/Separate-Debug-Files.html#Separate-Debug-Files. */
 diff --git a/src/jdk.jpackage/linux/classes/jdk/jpackage/internal/resources/desktop_utils.sh b/src/jdk.jpackage/linux/classes/jdk/jpackage/internal/resources/desktop_utils.sh
