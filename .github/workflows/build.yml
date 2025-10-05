@@ -1,7 +1,6 @@
 name: Build OpenJDK for Android
 
 on:
-  push:
   workflow_dispatch:
 
 jobs:
@@ -9,7 +8,7 @@ jobs:
     strategy:
       fail-fast: false
 
-    name: "Build for Android ${{matrix.arch}}"
+    name: "Build for Android aarch64"
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
