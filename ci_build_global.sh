@@ -15,9 +15,9 @@ cp devkit.info.${TARGET_SHORT} ${TOOLCHAIN}
 
 # Some modifies to NDK to fix
 
-bash getlibs.sh
-bash buildlibs.sh
-bash clonejdk.sh
-bash buildjdk.sh
-bash removejdkdebuginfo.sh
-bash tarjdk.sh
+./getlibs.sh
+./buildlibs.sh
+./clonejdk.sh
+./buildjdk.sh
+./removejdkdebuginfo.sh
+./tarjdk.sh

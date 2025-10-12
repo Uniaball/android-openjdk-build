@@ -4,7 +4,7 @@ export NDK_VERSION=r28
 
 if [[ -z "$BUILD_FREETYPE_VERSION" ]]
 then
-  export BUILD_FREETYPE_VERSION="2.14.1"
+  export BUILD_FREETYPE_VERSION="2.13.3"
 fi
 
 if [[ -z "$JDK_DEBUG_LEVEL" ]]
@@ -26,7 +26,7 @@ fi
 
 export JVM_PLATFORM=linux
 # Set NDK
-export API=26
+export API=24
 
 # Runners usually ship with a recent NDK already
 if [[ -z "$ANDROID_NDK_HOME" ]]
@@ -39,7 +39,7 @@ export TOOLCHAIN=$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64
 export ANDROID_INCLUDE=$TOOLCHAIN/sysroot/usr/include
 
 export CPPFLAGS="-I$ANDROID_INCLUDE -I$ANDROID_INCLUDE/$TARGET" # -I/usr/include -I/usr/lib
-export LDFLAGS="-fuse-ld=lld"
+export LDFLAGS="-flto=thin -fuse-ld=lld -Wl,-plugin-opt=-emulated-tls=0"
 export thecc=$TOOLCHAIN/bin/${TARGET}${API}-clang
 export thecxx=$TOOLCHAIN/bin/${TARGET}${API}-clang++
 
@@ -57,5 +57,3 @@ export READELF=$TOOLCHAIN/bin/llvm-readelf
 export RANLIB=$TOOLCHAIN/bin/llvm-ranlib
 export STRIP=$TOOLCHAIN/bin/llvm-strip
 export LINK=$TOOLCHAIN/bin/llvm-link
-
-export TARGET_OS=android
